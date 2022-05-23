@@ -655,4 +655,48 @@ public class QuerydslBasicTest {
     private Predicate allEq(String usernameCond, Integer ageCond) {
         return usernameEq(usernameCond).and(ageEq(ageCond));
     }
+
+    /**
+     * 벌크 연산은 영속성 컨텍스트의 상태를 무시하고
+     * 디비에 쿼리를 바로 날려 디비의 상태를 바꿔버린다.
+     * 따라서, 벌크 연산 후에는 영속성 컨텍스트를 초기화해야 한다.
+     */
+    @Test
+    public void bulkUpdate() {
+        long count = queryFactory
+            .update(member)
+            .set(member.username, "비회원")
+            .where(member.age.lt(28))
+            .execute();
+
+        // 디비에서 다시 조회를 해도 영속성 컨텍스트의 상태가 우선순위를 가지기때문에
+        // 조회한 결과로 덮어써지지 않는다.
+        // 따라서 영속성 컨텍스트를 초기화한 후 조회해야한다.
+        em.flush();
+        em.clear();
+
+        List<Member> result = queryFactory
+            .selectFrom(member)
+            .fetch();
+
+        for (Member member : result) {
+            System.out.println("member = " + member);
+        }
+    }
+
+    @Test
+    public void bulkAdd() {
+        long count = queryFactory
+            .update(member)
+            .set(member.age, member.age.add(1))
+            .execute();
+    }
+
+    @Test
+    public void bulkDelete() {
+        long count = queryFactory
+            .delete(member)
+            .where(member.age.gt(18))
+            .execute();
+    }
 }
